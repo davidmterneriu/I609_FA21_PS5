@@ -14,11 +14,9 @@ library(GGally)
 
 #install.packages("DiagrammeR")
 
-edgelist <- read_excel("Desktop/IU/INFO/Complex Systems/PS5/edgelist.xlsx", 
-                       sheet = "Sheet1")
+edgelist <- read_excel("edgelist.xlsx", sheet = "Sheet1")
 
-nodes<-read_excel("Desktop/IU/INFO/Complex Systems/PS5/edgelist.xlsx", 
-                     sheet = "Sheet2")
+nodes<-read_excel("edgelist.xlsx", sheet = "Sheet2")
 
 
 
@@ -29,30 +27,13 @@ edge_end<-substring(edgelist$Edges,2,2)
 
 edgelist<-cbind(edge_start,edge_end)%>%as.data.frame()
 
-g1=graph_from_data_frame(edgelist, directed=F, vertices=nodes)
-plot(g1)
-
-degree(g1)
-c1 = cluster_fast_greedy(g1)
-member_df=data.frame(Node=c1$names,club=c1$membership)
-nodes=nodes%>%inner_join(member_df)
-
-
-ggraph::create_layout(g1,layout = "auto")
-plot(g1)
-
 df1=edgelist%>%
   inner_join(nodes,by=c("edge_start"="Node"))%>%
   rename(x0=x,y0=y)%>%
   inner_join(nodes,by=c("edge_end"="Node"))%>%
   rename(x1=x,y1=y)
 
-ggplot(nodes,aes(x,y)) +
-  geom_edges(data=df1,aes(x=x0,y=y0,xend=x1,yend=y1))+
-  geom_nodes(aes(color=as.factor(club)),size=4)
-
-
-
+g1=graph_from_data_frame(edgelist, directed=F, vertices=nodes)
 
 
 cascade_fun=function(edge_list,nodes,initial_infect,q_rule){
@@ -74,7 +55,7 @@ cascade_fun=function(edge_list,nodes,initial_infect,q_rule){
   new_infect_c=1
   #browser()
   while(convert_number>0 & counter<100 &infect_count<length(vertex_list) &new_infect_c>0){
-    print(new_infect_c)
+    #print(new_infect_c)
     counter=counter+1
     temp_nodes=data.frame(Time=counter,Nodes=vertex_list,brand=V(g1)$brand)
     
@@ -119,14 +100,16 @@ res1=cascade_fun(edge_list = edgelist,nodes = nodes,
                  initial_infect = c("e","f"),q_rule = 2/5)
 
 res1$node_status_df%>%
+  mutate(time2=paste0("Time: ",Time))%>%
   ggplot(aes(x,y)) +
   geom_edges(data=df1,aes(x=x0,y=y0,xend=x1,yend=y1))+
-  geom_nodes(aes(color=brand),size=5)+
-  geom_text(aes(label=Nodes),size=4)+
-  facet_wrap(~Time)+
-  theme_blank()
+  geom_nodes(aes(color=brand),size=6,alpha=0.9)+
+  geom_text(aes(label=Nodes),size=5,color="white")+
+  facet_wrap(~time2,ncol = 2)+
+  theme_blank()+
+  ggthemes::scale_color_colorblind()+
+  labs(color="Brand")
 
-plot(res1$net)
 
 res_net=res1$net
 
@@ -142,7 +125,7 @@ nodes_2=data.frame(Node=nodes$Node,neighbors=0,neighbor_share=0)
 
 neighbors(g1,nodes$Node[2])%>%unlist()%>%names()
 
-for(i in 1:nrow(not_S)){
+for(i in 1:nrow(nodes_2)){
   tn=neighbors(g1,nodes$Node[i])%>%unlist()%>%names()
   nodes_2$neighbors[i]<-sum(tn %in% test_vert_names)
   nodes_2$neighbor_share[i]<-mean(tn %in% test_vert_names)
@@ -150,13 +133,31 @@ for(i in 1:nrow(not_S)){
 
 
 nodes%>%inner_join( nodes_2)%>%
-  mutate(status=ifelse(neighbor_share>=3/5,"Not S","S"),
+  mutate(status=ifelse(neighbor_share>=3/5,"Blocking Cluster","S+Brand Switch"),
          mesg=paste0(Node,": ",round(neighbor_share,2),""))%>%
   ggplot(aes(x,y)) +
   geom_edges(data=df1,aes(x=x0,y=y0,xend=x1,yend=y1))+
   geom_nodes(aes(color=as.factor(status)),size=4)+
   ggrepel::geom_label_repel(aes(label= mesg))+
-  theme_blank()
+  theme_blank()+
+  theme(legend.position = "top")+
+  labs(color="Cluster: ")+
+  ggthemes::scale_color_calc()
+
+
+res2b=cascade_fun(edge_list = edgelist,nodes = nodes,
+                  initial_infect = c("e","f","m"),q_rule = 2/5)
+
+res2b$node_status_df%>%
+  mutate(time2=paste0("Time: ",Time))%>%
+  ggplot(aes(x,y)) +
+  geom_edges(data=df1,aes(x=x0,y=y0,xend=x1,yend=y1))+
+  geom_nodes(aes(color=brand),size=6,alpha=0.9)+
+  geom_text(aes(label=Nodes),size=5,color="white")+
+  facet_wrap(~time2,ncol = 3)+
+  theme_blank()+
+  ggthemes::scale_color_colorblind()+
+  labs(color="Brand")
 
 
 
