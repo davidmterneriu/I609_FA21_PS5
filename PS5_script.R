@@ -158,3 +158,5 @@ nodes%>%inner_join( nodes_2)%>%
   ggrepel::geom_label_repel(aes(label= mesg))+
   theme_blank()
 
+
+
